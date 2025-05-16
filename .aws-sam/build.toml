@@ -7,6 +7,6 @@ architecture = "x86_64"
 handler = "com.products.auth.SetAdminPasswordHandler::handleRequest"
 manifest_hash = ""
 packagetype = "Zip"
-functions = ["SendTempPasswordFunction"]
+functions = ["SendTempPasswordFunction", "CreateSalesPersonFunction", "LoginFunction", "NewPasswordFunction"]
 
 [layer_build_definitions]

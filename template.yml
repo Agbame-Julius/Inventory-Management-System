@@ -115,6 +115,22 @@ Resources:
       UserPoolId: !Ref UserPool
     DependsOn: AdminUser
 
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "inventory-sys-api-${Stage}"
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+
   SendTempPasswordFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -129,7 +145,6 @@ Resources:
               Action:
                 - cognito-idp:AdminSetUserPassword
                 - cognito-idp:AdminCreateUser
-                - cognito-idp:AdminInitiateAuth
               Resource: !GetAtt UserPool.Arn
             - Effect: Allow
               Action:
@@ -150,3 +165,111 @@ Resources:
     Properties:
       ServiceToken: !GetAtt SendTempPasswordFunction.Arn
 
+  CreateSalesPersonFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.CreateSalesPersonHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action:
+                - 'ses:SendEmail'
+                - 'ses:SendRawEmail'
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          REGION: !Ref AWS::Region
+          EMAIL_SENDER: !Ref EmailSender
+          GROUP_NAME: !Ref SalesPersonGroup
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/create-sales-person
+            Method: post
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.LoginHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          USER_POOL_ID: !Ref UserPool
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/login
+            Method: post
+            Auth:
+              Authorizer: NONE
+
+  NewPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.CompleteNewPasswordHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          REGION: !Ref AWS::Region
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:RespondToAuthChallenge
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        NewPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/complete-new-password
+            Method: post
+            Auth:
+              Authorizer: NONE
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+
+  AdminGroupName:
+    Description: Cognito Admin Group Name
+    Value: !Ref AdminGroup
+
+  SalesPersonGroupName:
+    Description: Cognito SalesPerson Group Name
+    Value: !Ref SalesPersonGroup
+
+  ApiGatewayUrl:
+    Description: API Gateway endpoint
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/"
