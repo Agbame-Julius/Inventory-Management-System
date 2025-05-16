@@ -1,0 +1,275 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Inventory Management System SAM Template
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Environment stage name
+    Default: dev
+  AdminEmail:
+    Type: String
+    Description: Admin email address
+  DomainName:
+    Type: String
+    Default: domain@domain.com
+    Description: Domain name for the application
+  EmailSender:
+    Type: String
+    Default: notifications@domain.com
+    Description: Email sender for SES notifications
+  AdminFirstName:
+    Type: String
+    Default: Admin
+    Description: Admin first name
+  AdminLastName:
+    Type: String
+    Default: Admin
+    Description: Admin last name
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "inventory-sys-${Stage}-user-pool"
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: firstName
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: lastName
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage: "Your username is {username} and temporary password is {####}. Please login to change your password."
+          EmailSubject: "Your temporary password for the Inventory Management System"
+          SMSMessage: "Your username is {username} and temporary password is {####}"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "inventory-sys-${Stage}-client"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Admin
+      UserPoolId: !Ref UserPool
+      Description: Administrators with full control over the system
+
+  SalesPersonGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: SalesPerson
+      UserPoolId: !Ref UserPool
+      Description: Sales Person with limited access
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref AdminEmail
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+        - Name: custom:firstName
+          Value: !Ref AdminFirstName
+        - Name: custom:lastName
+          Value: !Ref AdminLastName
+      DesiredDeliveryMediums:
+        - EMAIL
+      ForceAliasCreation: true
+      MessageAction: SUPPRESS
+
+  AdminUserGroupAttachment:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Properties:
+      GroupName: !Ref AdminGroup
+      Username: !Ref AdminEmail
+      UserPoolId: !Ref UserPool
+    DependsOn: AdminUser
+
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "inventory-sys-api-${Stage}"
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+
+  SendTempPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.SetAdminPasswordHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminCreateUser
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action:
+                - 'ses:SendEmail'
+                - 'ses:SendRawEmail'
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          ADMIN_EMAIL: !Ref AdminEmail
+          REGION: !Ref AWS::Region
+          EMAIL_SENDER: !Ref EmailSender
+          ADMIN_FIRST_NAME: !Ref AdminFirstName
+
+  SetAdminPasswordCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt SendTempPasswordFunction.Arn
+
+  CreateSalesPersonFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.CreateSalesPersonHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action:
+                - 'ses:SendEmail'
+                - 'ses:SendRawEmail'
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          REGION: !Ref AWS::Region
+          EMAIL_SENDER: !Ref EmailSender
+          GROUP_NAME: !Ref SalesPersonGroup
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/create-sales-person
+            Method: post
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.LoginHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          USER_POOL_ID: !Ref UserPool
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/login
+            Method: post
+            Auth:
+              Authorizer: NONE
+
+  NewPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.auth.CompleteNewPasswordHandler::handleRequest
+      Runtime: java21
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          REGION: !Ref AWS::Region
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:RespondToAuthChallenge
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        NewPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/complete-new-password
+            Method: post
+            Auth:
+              Authorizer: NONE
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+
+  AdminGroupName:
+    Description: Cognito Admin Group Name
+    Value: !Ref AdminGroup
+
+  SalesPersonGroupName:
+    Description: Cognito SalesPerson Group Name
+    Value: !Ref SalesPersonGroup
+
+  ApiGatewayUrl:
+    Description: API Gateway endpoint
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/"
