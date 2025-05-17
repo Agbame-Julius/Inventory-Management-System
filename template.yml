@@ -170,7 +170,7 @@ Resources:
     Properties:
       Handler: com.products.auth.CreateSalesPersonHandler::handleRequest
       Runtime: java21
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 30
       Policies:
         - Version: '2012-10-17'
@@ -208,7 +208,7 @@ Resources:
     Properties:
       Handler: com.products.auth.LoginHandler::handleRequest
       Runtime: java21
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 30
       Environment:
         Variables:
@@ -230,7 +230,7 @@ Resources:
     Properties:
       Handler: com.products.auth.CompleteNewPasswordHandler::handleRequest
       Runtime: java21
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 30
       Environment:
         Variables:
