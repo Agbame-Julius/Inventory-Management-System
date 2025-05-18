@@ -21,10 +21,10 @@ public class CreateSalesPersonHandler implements RequestHandler<APIGatewayProxyR
     private final String userPoolId;
     private final String groupName;
     private final Region region;
-    private String emailHtmlTemplate;
     private final String EMAIL_TEMPLATE_PATH = "temporary_password.html";
-    private ObjectMapper mapper = new ObjectMapper();
     private final Map<String, String> headers;
+    private String emailHtmlTemplate;
+    private ObjectMapper mapper = new ObjectMapper();
 
     public CreateSalesPersonHandler() {
         this.region = Region.of(System.getenv("REGION"));
