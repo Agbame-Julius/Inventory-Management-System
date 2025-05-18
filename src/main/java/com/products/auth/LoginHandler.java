@@ -4,6 +4,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.products.request.LoginRequest;
@@ -74,6 +76,7 @@ public class LoginHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                                     .success(true)
                                     .message("Login successful")
                                     .idToken(authResponse.authenticationResult().idToken())
+                                    .role(extractCognitoGroups(authResponse.authenticationResult().idToken()))
                                     .build()
                     ));
 
@@ -93,5 +96,23 @@ public class LoginHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
         }
 
+    }
+
+
+    private String extractCognitoGroups(String idToken) {
+        try {
+            DecodedJWT jwt = JWT.decode(idToken);
+
+            var claim = jwt.getClaim("cognito:groups");
+            if (claim.isNull()) return null;
+
+            var groupsList = claim.asList(String.class);
+            if (groupsList != null && !groupsList.isEmpty())
+                return String.join(",", groupsList);
+
+            return claim.asString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
