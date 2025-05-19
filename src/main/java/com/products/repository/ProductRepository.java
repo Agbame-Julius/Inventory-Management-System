@@ -7,8 +7,6 @@ import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
-import java.util.List;
-
 public class ProductRepository {
     private final DynamoDbTable<Product> productTable;
 
