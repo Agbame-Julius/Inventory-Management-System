@@ -33,9 +33,9 @@ public class ProductRepository {
     }
 
 
-    public boolean existsByCategoryId(String categoryId) {
+    public boolean existsByCategoryIdAndProductName(String categoryId, String productName) {
         QueryConditional query = QueryConditional.keyEqualTo(
-                Key.builder().partitionValue(categoryId).build()
+                Key.builder().partitionValue(categoryId).sortValue(productName).build()
         );
 
         return productTable.index("CategoryIndex")
