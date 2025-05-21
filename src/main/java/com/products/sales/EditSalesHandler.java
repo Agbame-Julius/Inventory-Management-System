@@ -69,9 +69,12 @@ public class EditSalesHandler implements RequestHandler<APIGatewayProxyRequestEv
             validateRequest(request);
 
             Sales existingSales = salesRepository.findBySalesId(request.salesId());
-            if (existingSales == null) {
+            if (existingSales == null)
                 return errorResponse(404, "Sales record not found");
-            }
+
+            var sevenDaysBefore = LocalDate.now().minusDays(7);
+            if (!sevenDaysBefore.isBefore(existingSales.getDateSold()))
+                throw new IllegalArgumentException("Sales can't be updated as it was made over a week ago.");
 
             Map<String, SaleLineItem> existingItemsMap = new HashMap<>();
             if (existingSales.getItems() != null) {
