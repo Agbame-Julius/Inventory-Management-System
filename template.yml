@@ -505,6 +505,7 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
                 - dynamodb:GetItem
+                - dynamodb:PutItem
               Resource:
                 - !GetAtt ProductTable.Arn
                 - !Sub "${ProductTable.Arn}/index/*"
@@ -515,22 +516,6 @@ Resources:
           PRODUCT_TABLE: !Ref ProductTable
           CATEGORY_TABLE: !Ref CategoryTable
           REGION: !Ref AWS::Region
-            TableName: !Ref SalesTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref SalesTable
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:Query
-                - dynamodb:Scan
-                - dynamodb:PutItem
-              Resource:
-                - !GetAtt ProductTable.Arn
-      Environment:
-        Variables:
-          SALES_TABLE: !Ref SalesTable
-          PRODUCT_TABLE: !Ref ProductTable
       Events:
         ApiEvent:
           Type: Api
