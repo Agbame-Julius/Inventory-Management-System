@@ -3,6 +3,7 @@ package com.products.repository;
 import com.products.model.Sales;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
 public class SalesRepository {
@@ -17,4 +18,11 @@ public class SalesRepository {
     }
 
 
+    public Sales findBySalesId(String salesId) {
+        return salesTable.getItem(
+                Key.builder()
+                        .partitionValue(salesId)
+                        .build()
+        );
+    }
 }

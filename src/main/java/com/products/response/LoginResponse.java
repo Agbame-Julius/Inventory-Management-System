@@ -13,4 +13,5 @@ public class LoginResponse {
     private String idToken;
     private String challengeName;
     private String session;
+    private String role;
 }

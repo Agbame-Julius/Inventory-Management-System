@@ -2,6 +2,7 @@ package com.products.request;
 
 import java.util.List;
 
-public record CreateSalesRequest(
+public record EditSalesRequest(
+        String salesId,
         List<SaleLineItem> items
 ) {}

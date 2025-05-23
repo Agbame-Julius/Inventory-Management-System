@@ -408,6 +408,43 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  EditSalesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.sales.EditSalesHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBWritePolicy:
+             TableName: !Ref SalesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt ProductTable.Arn
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+          PRODUCT_TABLE: !Ref ProductTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sales/edit-sales
+            Method: put
+            Auth:
+              Authorizer: CognitoAuthorizer
   CreateCategoryFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -478,6 +515,22 @@ Resources:
           PRODUCT_TABLE: !Ref ProductTable
           CATEGORY_TABLE: !Ref CategoryTable
           REGION: !Ref AWS::Region
+            TableName: !Ref SalesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt ProductTable.Arn
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+          PRODUCT_TABLE: !Ref ProductTable
       Events:
         ApiEvent:
           Type: Api
