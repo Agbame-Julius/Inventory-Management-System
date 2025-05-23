@@ -560,6 +560,45 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  UpdateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.UpdateProductHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /products/update/{productId}
+            Method: put
+            Auth:
+              Authorizer: CognitoAuthorizer
+
 Outputs:
   UserPoolId:
     Description: Cognito User Pool ID
