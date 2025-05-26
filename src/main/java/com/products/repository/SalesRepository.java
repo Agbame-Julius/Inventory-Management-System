@@ -6,6 +6,9 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class SalesRepository {
     private final DynamoDbTable<Sales> salesTable;
 
@@ -17,7 +20,6 @@ public class SalesRepository {
         salesTable.putItem(sales);
     }
 
-
     public Sales findBySalesId(String salesId) {
         return salesTable.getItem(
                 Key.builder()
@@ -25,4 +27,9 @@ public class SalesRepository {
                         .build()
         );
     }
+
+    public List<Sales> findAll() {
+        return salesTable.scan().items().stream().collect(Collectors.toList());
+    }
+
 }
