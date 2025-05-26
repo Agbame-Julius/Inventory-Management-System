@@ -14,4 +14,7 @@ public class GetSalesResponse {
     private boolean success;
     private String message;
     private List<Sales> sales;
+    private String lastEvaluatedKey;
+    private boolean hasMore;
+    private int totalReturned;
 }

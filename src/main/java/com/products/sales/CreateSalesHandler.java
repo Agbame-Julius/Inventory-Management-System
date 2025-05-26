@@ -57,7 +57,7 @@ public class CreateSalesHandler implements RequestHandler<APIGatewayProxyRequest
                 if (item.getQuantitySold() > product.getQuantity()) {
                     return ResponseType.errorResponse(400, "Not enough stock for product: " + product.getProductName());
                 }
-                double expectedTotal = item.getQuantitySold() * product.getUnitPrice();
+                double expectedTotal = item.getQuantitySold() * product.getUnitSellingPrice();
                 if (Math.abs(expectedTotal - item.getTotalPrice()) > 0.01) {
                     return ResponseType.errorResponse(400, "Total price mismatch for product: " + item.getProductId());
                 }

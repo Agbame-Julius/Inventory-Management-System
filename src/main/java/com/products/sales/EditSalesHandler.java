@@ -129,7 +129,7 @@ public class EditSalesHandler implements RequestHandler<APIGatewayProxyRequestEv
                     return errorResponse(400, "Not enough stock for product: " + newItem.getProductId());
                 }
 
-                double expectedTotal = newItem.getQuantitySold() * product.getUnitPrice();
+                double expectedTotal = newItem.getQuantitySold() * product.getUnitSellingPrice();
                 if (Math.abs(expectedTotal - newItem.getTotalPrice()) > 0.01) {
                     return errorResponse(400, "Total price mismatch for product: " + newItem.getProductId());
                 }
