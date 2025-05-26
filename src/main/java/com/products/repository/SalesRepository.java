@@ -6,6 +6,10 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class SalesRepository {
     private final DynamoDbTable<Sales> salesTable;
 
@@ -24,5 +28,17 @@ public class SalesRepository {
                         .partitionValue(salesId)
                         .build()
         );
+    }
+
+    public List<Sales> findByDateRange(LocalDate startDate, LocalDate endDate) {
+        // Use scan to filter sales by dateSold
+        return salesTable.scan()
+                .items()
+                .stream()
+                .filter(sale -> {
+                    LocalDate dateSold = sale.getDateSold();
+                    return !dateSold.isBefore(startDate) && !dateSold.isAfter(endDate);
+                })
+                .collect(Collectors.toList());
     }
 }
