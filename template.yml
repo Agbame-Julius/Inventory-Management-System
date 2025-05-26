@@ -331,6 +331,28 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+  CategoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Category
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: categoryId
+          AttributeType: S
+        - AttributeName: categoryName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: categoryId
+          KeyType: HASH
+        - AttributeName: categoryName
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: CategoryNameIndex
+          KeySchema:
+            - AttributeName: categoryName
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   CreateSalesFunction:
     Type: AWS::Serverless::Function
@@ -384,7 +406,7 @@ Resources:
       AutoPublishAlias: live
       Policies:
         - DynamoDBWritePolicy:
-            TableName: !Ref SalesTable
+             TableName: !Ref SalesTable
         - DynamoDBReadPolicy:
             TableName: !Ref SalesTable
         - Statement:
@@ -434,6 +456,194 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /sales
             Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+  CreateCategoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.CreateCategoryHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref CategoryTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoryTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !GetAtt CategoryTable.Arn
+                - !Sub "${CategoryTable.Arn}/index/*"
+      Environment:
+        Variables:
+          CATEGORY_TABLE: !Ref CategoryTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /category/create
+            Method: post
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  CreateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.CreateProductHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoryTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+                - !GetAtt CategoryTable.Arn
+                - !Sub "${CategoryTable.Arn}/index/*"
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTable
+          CATEGORY_TABLE: !Ref CategoryTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /products/create-product
+            Method: post
+            Auth:
+              Authorizer: CognitoAuthorizer
+  GetAllProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.GetAllProductsHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /products/get-all-products
+            Method: get
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  UpdateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.UpdateProductHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /products/update/{productId}
+            Method: put
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  GetProductsByCategoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.crud.GetProductsByCategoryHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTable
+          REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /products/category
+            Method: get
             Auth:
               Authorizer: CognitoAuthorizer
 

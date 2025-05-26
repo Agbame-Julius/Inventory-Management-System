@@ -19,12 +19,15 @@ public class Product {
 
     private String productId;
     private String productName;
-    private double unitPrice;
+    private double unitCostPrice;
     private int quantity;
     private LocalDate dateAdded;
     private LocalDate dateUpdated;
     private String categoryId;
     private String categoryName;
+    private double totalPrice;
+    private double unitSellingPrice;
+    private double totalSellingPrice;
 
     @DynamoDbPartitionKey
     public String getProductId() {
