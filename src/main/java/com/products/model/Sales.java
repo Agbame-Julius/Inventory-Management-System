@@ -23,8 +23,6 @@ import java.util.List;
 public class Sales {
 
     private String salesId;
-    private String productId;
-    private String categoryId;
     private List<SaleLineItem> items;
     private int quantitySold;
     private double totalPrice;
@@ -36,17 +34,7 @@ public class Sales {
         return salesId;
     }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = {"ProductIndex"})
-    public String getProductId() {
-        return productId;
-    }
-
-    @DynamoDbSecondaryPartitionKey(indexNames = {"CategoryIndex"})
-    public String getCategoryId() {
-        return categoryId;
-    }
-
-    @DynamoDbSecondarySortKey(indexNames = {"ProductIndex", "CategoryIndex"})
+    @DynamoDbSecondarySortKey(indexNames = {"DateSoldIndex"})
     @DynamoDbConvertedBy(LocalDateAttributeConverter.class)
     public LocalDate getDateSold() {
         return dateSold;
