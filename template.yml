@@ -74,6 +74,7 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
       PreventUserExistenceErrors: ENABLED
 
   AdminGroup:
@@ -458,6 +459,33 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
+
+  GetSaleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.sales.GetSaleHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sales/{salesId}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   CreateCategoryFunction:
     Type: AWS::Serverless::Function
     Properties:
