@@ -5,9 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4ca48b3b-3189-4226-a75b-50ab0730c993" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/products/sales/GetSaleHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/products/sales/GetSaleHandler.java" afterDir="false" />
+
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/products/reports/WeeklySalesReportHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/products/repository/SalesRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/products/repository/SalesRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/template.yml" beforeDir="false" afterPath="$PROJECT_DIR$/template.yml" afterDir="false" />
     </list>
+
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -23,7 +28,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="Feature/Create-Product" />
+        <entry key="$PROJECT_DIR$" value="main" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -91,7 +96,8 @@
       <workItem from="1747904437169" duration="2014000" />
       <workItem from="1747907445412" duration="2753000" />
       <workItem from="1747985862990" duration="942000" />
-      <workItem from="1748258378050" duration="14985000" />
+      <workItem from="1747988471494" duration="44592000" />
+      <workItem from="1748287582423" duration="5701000" />
     </task>
     <servers />
   </component>

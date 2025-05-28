@@ -13,6 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class SalesRepository {
     private final DynamoDbTable<Sales> salesTable;
 
@@ -32,6 +36,17 @@ public class SalesRepository {
         );
     }
 
+    public List<Sales> findByDateRange(LocalDate startDate, LocalDate endDate) {
+        // Use scan to filter sales by dateSold
+        return salesTable.scan()
+                .items()
+                .stream()
+                .filter(sale -> {
+                    LocalDate dateSold = sale.getDateSold();
+                    return !dateSold.isBefore(startDate) && !dateSold.isAfter(endDate);
+                })
+                .collect(Collectors.toList());
+    }
     public List<Sales> findAll() {
         return salesTable.scan().items().stream().collect(Collectors.toList());
     }
@@ -93,5 +108,4 @@ public class SalesRepository {
             return lastEvaluatedKey;
         }
     }
-
 }

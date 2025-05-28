@@ -675,6 +675,93 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  ReportBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "inventory-sys-reports-${AWS::AccountId}-${Stage}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+
+  WeeklySalesReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.reports.WeeklySalesReportHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 60
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt SalesTable.Arn
+                - !Sub "${SalesTable.Arn}/index/*"
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub "arn:aws:s3:::${ReportBucket}/*"
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+          PRODUCT_TABLE: !Ref ProductTable
+          REPORT_BUCKET: !Ref ReportBucket
+          ADMIN_EMAIL: !Ref AdminEmail
+          EMAIL_SENDER: !Ref EmailSender
+      Events:
+        WeeklySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 22 ? * SUN *) # Run every Sunday at 10:00 PM UTC
+            Name: !Sub WeeklySalesReportSchedule-${AWS::StackName}--${AWS::Region}
+            Description: Trigger weekly sales report generation
+            Enabled: true
+
+  WeeklySalesReportPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WeeklySalesReportFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklySalesReportSchedule.Arn
+
+  WeeklySalesReportSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: WeeklySalesReportSchedule
+      Description: Schedule for weekly sales report
+      ScheduleExpression: cron(0 22 ? * SUN *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt WeeklySalesReportFunction.Arn
+          Id: WeeklySalesReportTarget
+
 Outputs:
   UserPoolId:
     Description: Cognito User Pool ID
