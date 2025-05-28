@@ -10,6 +10,5 @@ import lombok.*;
 public class SaleLineItem {
     private String productId;
     private int quantitySold;
-    private double unitPrice;
     private double totalPrice;
 }

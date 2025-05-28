@@ -4,14 +4,13 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.products.model.Sales;
 import com.products.repository.ProductRepository;
 import com.products.repository.SalesRepository;
 import com.products.request.CreateSalesRequest;
 import com.products.request.SaleLineItem;
-import com.products.response.SuccessResponse;
+import com.products.response.ResponseType;
 import com.products.utils.CognitoUtil;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -36,11 +35,11 @@ public class CreateSalesHandler implements RequestHandler<APIGatewayProxyRequest
         var logger = context.getLogger();
         try {
             if (!CognitoUtil.isSalesPerson(event)) {
-                return errorResponse(401, "User is not authorized to perform this action");
+                return ResponseType.errorResponse(401, "User is not authorized to perform this action");
             }
 
             if (event.getBody() == null) {
-                return errorResponse(400, "Request body is required");
+                return ResponseType.errorResponse(400, "Request body is required");
             }
 
             logger.log("Received request: " + event.getBody());
@@ -53,14 +52,14 @@ public class CreateSalesHandler implements RequestHandler<APIGatewayProxyRequest
             for (SaleLineItem item : request.items()) {
                 var product = productRepository.findByProductId(item.getProductId());
                 if (product == null) {
-                    return errorResponse(404, "Product not found: " + item.getProductId());
+                    return ResponseType.errorResponse(404, "Product not found: " + item.getProductId());
                 }
                 if (item.getQuantitySold() > product.getQuantity()) {
-                    return errorResponse(400, "Not enough stock for product: " + product.getProductName());
+                    return ResponseType.errorResponse(400, "Not enough stock for product: " + product.getProductName());
                 }
-                double expectedTotal = item.getQuantitySold() * item.getUnitPrice();
+                double expectedTotal = item.getQuantitySold() * product.getUnitSellingPrice();
                 if (Math.abs(expectedTotal - item.getTotalPrice()) > 0.01) {
-                    return errorResponse(400, "Total price mismatch for product: " + item.getProductId());
+                    return ResponseType.errorResponse(400, "Total price mismatch for product: " + item.getProductId());
                 }
                 product.setQuantity(product.getQuantity() - item.getQuantitySold());
                 product.setDateUpdated(LocalDate.now());
@@ -80,10 +79,10 @@ public class CreateSalesHandler implements RequestHandler<APIGatewayProxyRequest
 
             salesRepository.save(sales);
 
-            return successResponse();
+            return ResponseType.successResponse(201, "Sales created successfully");
         } catch (Exception e) {
             logger.log("Error: " + e.getMessage());
-            return errorResponse(500, "Error processing request: " + e.getMessage());
+            return ResponseType.errorResponse(500, "Error processing request: " + e.getMessage());
         }
     }
 
@@ -101,36 +100,6 @@ public class CreateSalesHandler implements RequestHandler<APIGatewayProxyRequest
             if (item.getTotalPrice() < 0) {
                 throw new IllegalArgumentException("Total price must be zero or greater for each line item");
             }
-        }
-    }
-
-    private APIGatewayProxyResponseEvent errorResponse(int status, String message) {
-        try {
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(status)
-                    .withBody(mapper.writeValueAsString(
-                            SuccessResponse.builder()
-                                    .success(false)
-                                    .message(message)
-                                    .build()
-                    ));
-        } catch (JsonProcessingException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private APIGatewayProxyResponseEvent successResponse() {
-        try {
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(201)
-                    .withBody(mapper.writeValueAsString(
-                            SuccessResponse.builder()
-                                    .success(true)
-                                    .message("Sales created successfully")
-                                    .build()
-                    ));
-        } catch (JsonProcessingException ex) {
-            throw new RuntimeException(ex);
         }
     }
 }

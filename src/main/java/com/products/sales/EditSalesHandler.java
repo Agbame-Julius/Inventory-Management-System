@@ -11,6 +11,7 @@ import com.products.repository.ProductRepository;
 import com.products.repository.SalesRepository;
 import com.products.request.EditSalesRequest;
 import com.products.request.SaleLineItem;
+import com.products.response.ResponseType;
 import com.products.response.SuccessResponse;
 import com.products.utils.CognitoUtil;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -56,22 +57,27 @@ public class EditSalesHandler implements RequestHandler<APIGatewayProxyRequestEv
         var logger = context.getLogger();
         try {
             if (!CognitoUtil.isSalesPerson(event)) {
-                return errorResponse(401, "User is not authorized to perform this action");
+                return ResponseType.errorResponse(401, "User is not authorized to perform this action");
             }
 
             if (event.getBody() == null) {
-                return errorResponse(400, "Request body is required");
+                return ResponseType.errorResponse(400, "Request body is required");
             }
 
             logger.log("Received request: " + event.getBody());
 
             EditSalesRequest request = mapper.readValue(event.getBody(), EditSalesRequest.class);
-            validateRequest(request);
+            var pathParameters = event.getPathParameters();
+            var salesId = pathParameters.get("salesId");
+            validateRequest(request, salesId);
 
-            Sales existingSales = salesRepository.findBySalesId(request.salesId());
-            if (existingSales == null) {
+            Sales existingSales = salesRepository.findBySalesId(salesId);
+            if (existingSales == null)
                 return errorResponse(404, "Sales record not found");
-            }
+
+            var sevenDaysBefore = LocalDate.now().minusDays(7);
+            if (!sevenDaysBefore.isBefore(existingSales.getDateSold()))
+                throw new IllegalArgumentException("Sales can't be updated as it was made over a week ago.");
 
             Map<String, SaleLineItem> existingItemsMap = new HashMap<>();
             if (existingSales.getItems() != null) {
@@ -123,7 +129,7 @@ public class EditSalesHandler implements RequestHandler<APIGatewayProxyRequestEv
                     return errorResponse(400, "Not enough stock for product: " + newItem.getProductId());
                 }
 
-                double expectedTotal = newItem.getQuantitySold() * newItem.getUnitPrice();
+                double expectedTotal = newItem.getQuantitySold() * product.getUnitSellingPrice();
                 if (Math.abs(expectedTotal - newItem.getTotalPrice()) > 0.01) {
                     return errorResponse(400, "Total price mismatch for product: " + newItem.getProductId());
                 }
@@ -151,8 +157,8 @@ public class EditSalesHandler implements RequestHandler<APIGatewayProxyRequestEv
         }
     }
 
-    private void validateRequest(EditSalesRequest request) {
-        if (request.salesId() == null || request.salesId().isEmpty()) {
+    private void validateRequest(EditSalesRequest request, String salesId) {
+        if (salesId == null || salesId.isEmpty()) {
             throw new IllegalArgumentException("Sales ID is required");
         }
         if (request.items() == null || request.items().isEmpty()) {

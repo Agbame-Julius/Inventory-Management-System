@@ -264,10 +264,6 @@ Resources:
       AttributeDefinitions:
         - AttributeName: salesId
           AttributeType: S
-        - AttributeName: productId
-          AttributeType: S
-        - AttributeName: categoryId
-          AttributeType: S
         - AttributeName: dateSold
           AttributeType: S
         - AttributeName: dateUpdated
@@ -276,20 +272,10 @@ Resources:
         - AttributeName: salesId
           KeyType: HASH
       GlobalSecondaryIndexes:
-        - IndexName: ProductIndex
+        - IndexName: DateSoldIndex
           KeySchema:
-            - AttributeName: productId
-              KeyType: HASH
             - AttributeName: dateSold
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
-        - IndexName: CategoryIndex
-          KeySchema:
-            - AttributeName: categoryId
               KeyType: HASH
-            - AttributeName: dateSold
-              KeyType: RANGE
           Projection:
             ProjectionType: ALL
         - IndexName: DateUpdatedIndex
@@ -404,7 +390,7 @@ Resources:
           Properties:
             RestApiId: !Ref ApiGateway
             Path: /sales/create-sales
-            Method: post
+            Method: POST
             Auth:
               Authorizer: CognitoAuthorizer
 
@@ -441,8 +427,35 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sales/edit-sales
-            Method: put
+            Path: /sales/{salesId}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  GetAllSalesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.sales.GetSalesHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+          PRODUCT_TABLE: !Ref ProductTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sales
+            Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
   CreateCategoryFunction:
