@@ -40,7 +40,6 @@ public class CognitoUtil {
         return claims;
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> getAuthorizer(APIGatewayProxyRequestEvent event) {
         if (event == null || event.getRequestContext() == null)
             throw new IllegalStateException("Request context is null, event: " + event);
