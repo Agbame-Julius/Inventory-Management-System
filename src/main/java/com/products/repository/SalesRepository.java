@@ -1,20 +1,16 @@
 package com.products.repository;
 
 import com.products.model.Sales;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
-import software.amazon.awssdk.enhanced.dynamodb.Key;
-import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
-import java.time.LocalDate;
-import java.util.List;
 import java.util.stream.Collectors;
 
 public class SalesRepository {
@@ -36,26 +32,33 @@ public class SalesRepository {
         );
     }
 
-    public List<Sales> findByDateRange(LocalDate startDate, LocalDate endDate) {
-        // Use scan to filter sales by dateSold
-        return salesTable.scan()
-                .items()
+    public List<Sales> getSalesByDate(String date) {
+        DynamoDbIndex<Sales> index = salesTable.index("DateSoldIndex");
+
+        return index.query(QueryConditional.keyEqualTo(Key.builder()
+                        .partitionValue(date)
+                        .build()))
                 .stream()
-                .filter(sale -> {
-                    LocalDate dateSold = sale.getDateSold();
-                    return !dateSold.isBefore(startDate) && !dateSold.isAfter(endDate);
-                })
+                .flatMap(page -> page.items().stream())
                 .collect(Collectors.toList());
     }
-    public List<Sales> findAll() {
-        return salesTable.scan().items().stream().collect(Collectors.toList());
+
+    public List<Sales> findByDateRange(LocalDate startDate, LocalDate endDate) {
+        List<Sales> allSales = new ArrayList<>();
+        LocalDate currentDate = startDate;
+
+        while (!currentDate.isAfter(endDate)) {
+            allSales.addAll(getSalesByDate(currentDate.toString()));
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return allSales;
     }
 
     public PaginatedResult<Sales> findAllPaginated(int limit, String lastEvaluatedKey) {
         ScanEnhancedRequest.Builder requestBuilder = ScanEnhancedRequest.builder()
                 .limit(limit);
 
-        // If lastEvaluatedKey is provided, set it as the exclusive start key
         if (lastEvaluatedKey != null && !lastEvaluatedKey.trim().isEmpty()) {
             Map<String, AttributeValue> exclusiveStartKey = parseLastEvaluatedKey(lastEvaluatedKey);
             requestBuilder.exclusiveStartKey(exclusiveStartKey);
@@ -66,7 +69,6 @@ public class SalesRepository {
         List<Sales> items = page.items();
         String nextLastEvaluatedKey = null;
 
-        // Convert lastEvaluatedKey back to string format for the response
         if (page.lastEvaluatedKey() != null && !page.lastEvaluatedKey().isEmpty()) {
             nextLastEvaluatedKey = serializeLastEvaluatedKey(page.lastEvaluatedKey());
         }
@@ -75,14 +77,11 @@ public class SalesRepository {
     }
 
     private Map<String, AttributeValue> parseLastEvaluatedKey(String lastEvaluatedKey) {
-        // For simplicity, assuming the partition key is the sales ID
-        // In a real scenario, you might want to use Base64 encoding/decoding
-        // or a more sophisticated serialization method
+
         return Map.of("salesId", AttributeValue.builder().s(lastEvaluatedKey).build());
     }
 
     private String serializeLastEvaluatedKey(Map<String, AttributeValue> lastEvaluatedKey) {
-        // Extract the partition key value (salesId in this case)
         AttributeValue salesIdValue = lastEvaluatedKey.get("salesId");
         if (salesIdValue != null && salesIdValue.s() != null) {
             return salesIdValue.s();
@@ -90,7 +89,6 @@ public class SalesRepository {
         return null;
     }
 
-    // Inner class to hold paginated results
     public static class PaginatedResult<T> {
         private final List<T> items;
         private final String lastEvaluatedKey;

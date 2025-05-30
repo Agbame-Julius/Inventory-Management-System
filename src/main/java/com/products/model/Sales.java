@@ -34,7 +34,7 @@ public class Sales {
         return salesId;
     }
 
-    @DynamoDbSecondarySortKey(indexNames = {"DateSoldIndex"})
+    @DynamoDbSecondaryPartitionKey(indexNames = {"DateSoldIndex"})
     @DynamoDbConvertedBy(LocalDateAttributeConverter.class)
     public LocalDate getDateSold() {
         return dateSold;
