@@ -566,6 +566,43 @@ Resources:
             Method: post
             Auth:
               Authorizer: CognitoAuthorizer
+
+  FilterSalesByDateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.products.sales.FilterSalesByDateHandler::handleRequest
+      Runtime: java21
+      MemorySize: 1024
+      Timeout: 30
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SalesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+                - dynamodb:Query
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt ProductTable.Arn
+                - !Sub "${ProductTable.Arn}/index/*"
+      Environment:
+        Variables:
+          SALES_TABLE: !Ref SalesTable
+          PRODUCT_TABLE: !Ref ProductTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sales/dates
+            Method: get
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   GetAllProductsFunction:
     Type: AWS::Serverless::Function
     Properties:
